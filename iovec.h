@@ -9,7 +9,7 @@ class IoVec
 public:
     static const long  maxiov;
     iovec_t m_vec;
-    IoVec(char* base, size_t nbytes, size_t iov_len, size_t gap=0);
+    IoVec(char* base, size_t nbytes, size_t iov_len, size_t nchans=1, size_t chan=0);
     size_t size() { return m_vec.size(); };
     size_t iov_len() { return m_vec.front().iov_len; };
     size_t nbytes() { return size() * iov_len(); };

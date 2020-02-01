@@ -12,7 +12,19 @@
 
 #include "iovec.h"
 
-class TestF : public ::testing::Test
+// TODO: FIXME build on this when you have time to focus !!!!!!!!!!1
+typedef std::vector<size_t> svec_t;
+
+class TestP : public ::testing::TestWithParam<svec_t>
+{
+};
+
+TEST_P(TestP,Foo)
+{
+    svec_t const& p = GetParam();
+}
+
+class TestZero : public ::testing::Test
 {
     const size_t buflen = 0x100000;
     char* buf; 
@@ -23,22 +35,21 @@ public:
     void testlen(size_t iov_len);
 };
 
-int TestF::fd = open("/dev/zero",O_RDONLY);
+int TestZero::fd = open("/dev/zero",O_RDONLY);
 
-void TestF::SetUp()
+void TestZero::SetUp()
 {
     buf = new char[buflen];
-    // TODO: check this memset(buf,'a',buflen);
 
     assert(fd!=-1);
 }
 
-void TestF::TearDown()
+void TestZero::TearDown()
 {
     delete[] buf;
 }
 
-void TestF::testlen(size_t iov_len)
+void TestZero::testlen(size_t iov_len)
 {
     const size_t count = buflen/iov_len;
     if (count > IoVec::maxiov)
@@ -46,6 +57,7 @@ void TestF::testlen(size_t iov_len)
         ASSERT_THROW( IoVec(buf,buflen,iov_len), std::runtime_error);
         return;
     }
+
     IoVec vec(buf,buflen,iov_len);
 
     EXPECT_EQ(vec.size(),count);
@@ -55,22 +67,20 @@ void TestF::testlen(size_t iov_len)
     ASSERT_LE(vec.base(count-1)-vec.base(),buflen);
     ASSERT_LE(vec.nbytes(),buflen);
 
+    memset(buf,'a',buflen);
+
     ssize_t n = readv(fd,vec.front(),vec.size());
 
     ASSERT_NE(n,-1) << "size " << iov_len << " errno " << errno;
     EXPECT_EQ(n,iov_len*count);
 }
 
-TEST_F(TestF,3333) { testlen(3333); }
-TEST_F(TestF,1024) { testlen(1024); }
-TEST_F(TestF,512) { testlen(512); }
-TEST_F(TestF,256) { testlen(256); }
-TEST_F(TestF,128) { testlen(128); }
-TEST_F(TestF,64) { testlen(64); }
-TEST_F(TestF,32) { testlen(32); }
-TEST_F(TestF,16) { testlen(16); }
-TEST_F(TestF,8) { testlen(8); }
-TEST_F(TestF,4) { testlen(4); }
-TEST_F(TestF,2) { testlen(2); }
-TEST_F(TestF,1) { testlen(1); }
+TEST_F(TestZero,4096) { testlen(4096); }
+TEST_F(TestZero,3333) { testlen(3333); }
+TEST_F(TestZero,1024) { testlen(1024); }
+TEST_F(TestZero,512) { testlen(512); }
+TEST_F(TestZero,8) { testlen(8); }
+TEST_F(TestZero,4) { testlen(4); }
+TEST_F(TestZero,2) { testlen(2); }
+TEST_F(TestZero,1) { testlen(1); }
 

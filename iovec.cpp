@@ -9,13 +9,13 @@
 
 const long  IoVec::maxiov = sysconf(_SC_IOV_MAX);
 
-IoVec::IoVec(char* base, size_t nbytes, size_t iov_len, size_t gap)
+IoVec::IoVec(char* base, size_t nbytes, size_t iov_len, size_t nchans, size_t chan)
 {
-
     char* ptr=base;
-    const size_t stride = iov_len + gap;
-    size_t len = nbytes/stride;
+    const size_t stride = nchans*iov_len;
+    const size_t len = nbytes/stride;
     assert(len);
+
     if (maxiov != -1 and static_cast<long>(len) > maxiov)
     {
         std::ostringstream ss;
