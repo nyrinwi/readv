@@ -3,66 +3,51 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <tuple>
 #include <cassert>
 #include <sys/file.h>
 #include <sys/uio.h>
 #include <sys/errno.h>
-#include <boost/foreach.hpp>
 #include <gtest/gtest.h>
 
 #include "iovec.h"
 
-// TODO: FIXME build on this when you have time to focus !!!!!!!!!!1
-typedef std::vector<size_t> svec_t;
-
-class TestP : public ::testing::TestWithParam<svec_t>
+struct Params
 {
+    const size_t len, nchans, chan;
+    Params(size_t len, size_t nchans=1, size_t chan=0)
+    : len(len), nchans(nchans), chan(chan) {};
+};
+
+class TestP : public ::testing::TestWithParam<Params>
+{
+public:
+    char* buf;
+    static int fd;
+    const size_t buflen = 0x100000;
+    TestP() {};
+    ~TestP() {};
+    void SetUp() { buf = new char[buflen]; };
+    void TearDown() { delete[] buf; };
 };
 
 TEST_P(TestP,Foo)
 {
-    svec_t const& p = GetParam();
-}
-
-class TestZero : public ::testing::Test
-{
-    const size_t buflen = 0x100000;
-    char* buf; 
-    static int fd;
-public:
-    void SetUp();
-    void TearDown();
-    void testlen(size_t iov_len);
-};
-
-int TestZero::fd = open("/dev/zero",O_RDONLY);
-
-void TestZero::SetUp()
-{
-    buf = new char[buflen];
-
-    assert(fd!=-1);
-}
-
-void TestZero::TearDown()
-{
-    delete[] buf;
-}
-
-void TestZero::testlen(size_t iov_len)
-{
-    const size_t count = buflen/iov_len;
-    if (count > IoVec::maxiov)
+    Params p = GetParam();
+    const size_t count = buflen/p.len;
+    BufferMgr bm(buf,buflen,p.len,p.nchans);
+ 
+    if (bm.num_units() > IoVec::maxiov)
     {
-        ASSERT_THROW( IoVec(buf,buflen,iov_len), std::runtime_error);
+        ASSERT_THROW(IoVec(bm,p.chan), std::runtime_error);
         return;
     }
 
-    IoVec vec(buf,buflen,iov_len);
+    IoVec vec(bm,p.chan);
 
     EXPECT_EQ(vec.size(),count);
     EXPECT_LE(vec.span(),buflen);
-    EXPECT_EQ(vec.span(),vec.size()*iov_len);
+    EXPECT_EQ(vec.span(),vec.size()*p.len);
     ASSERT_EQ(vec.base(),buf);
     ASSERT_LE(vec.base(count-1)-vec.base(),buflen);
     ASSERT_LE(vec.nbytes(),buflen);
@@ -71,16 +56,45 @@ void TestZero::testlen(size_t iov_len)
 
     ssize_t n = readv(fd,vec.front(),vec.size());
 
-    ASSERT_NE(n,-1) << "size " << iov_len << " errno " << errno;
-    EXPECT_EQ(n,iov_len*count);
+    ASSERT_NE(n,-1) << "size " << p.len << " errno " << errno;
+    EXPECT_EQ(n,p.len*count);
+};
+
+// TODO: use netcat or similar
+int TestP::fd = open("/dev/zero",O_RDONLY);
+
+TEST(BufferTest,1)
+{
+    char* base = NULL;
+    const size_t bufflen = 0x100000;
+    const size_t iov_len = 123;
+    const size_t nchans = 4;
+    const size_t nunits = bufflen/(nchans*iov_len);
+    BufferMgr buf(NULL, bufflen, iov_len, nchans);
+    ASSERT_EQ(buf.iov_len(),iov_len);
+    ASSERT_EQ(buf.size(),bufflen);
+    ASSERT_EQ(buf.m_stride,nchans*iov_len);
+    ASSERT_EQ(buf.m_num_units,nunits);
+    ASSERT_EQ(buf.span(),nunits*iov_len*nchans);
+    ASSERT_EQ(buf.base(0),base);
+    ASSERT_EQ(buf.base(0,2),base+buf.m_stride*2);
+    ASSERT_EQ(buf.base(1),base+iov_len);
+    ASSERT_EQ(buf.base(1,2),base+iov_len+buf.m_stride*2);
 }
 
-TEST_F(TestZero,4096) { testlen(4096); }
-TEST_F(TestZero,3333) { testlen(3333); }
-TEST_F(TestZero,1024) { testlen(1024); }
-TEST_F(TestZero,512) { testlen(512); }
-TEST_F(TestZero,8) { testlen(8); }
-TEST_F(TestZero,4) { testlen(4); }
-TEST_F(TestZero,2) { testlen(2); }
-TEST_F(TestZero,1) { testlen(1); }
+
+#if 0
+INSTANTIATE_TEST_SUITE_P(sizes,TestP,
+    testing::Values(
+           Params(0x10000),
+           Params(12345),
+           Params(0x1000),
+           Params(0x10)));
+
+INSTANTIATE_TEST_SUITE_P(channels,TestP,
+    testing::Values(
+           Params(0x1000,1),
+           Params(0x1000,2),
+           Params(0x1000,4)));
+#endif
 
