@@ -19,7 +19,6 @@ public:
     size_t size() const { return m_size; };
     size_t iov_len() const { return m_iov_len; };
     char* base(size_t channel=0, size_t unit=0) const;
-    size_t span() const { return m_stride*m_num_units; };
     size_t num_units() const { return m_num_units; };
 };
 
@@ -33,7 +32,6 @@ public:
     size_t size() { return m_vec.size(); };
     size_t iov_len() { return m_vec.front().iov_len; };
     size_t nbytes() { return size() * iov_len(); };
-    size_t span() { return (base(size()-1) - base(0)) + iov_len();};
     char* base(size_t seg=0) { return reinterpret_cast<char*>(m_vec[seg].iov_base); };
     struct iovec* front() { return &m_vec[0]; };
 

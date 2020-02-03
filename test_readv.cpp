@@ -31,10 +31,25 @@ public:
     void TearDown() { delete[] buf; };
 };
 
+size_t runlen(char* ptr, const char& c, size_t len)
+{
+    char* p = ptr;
+    size_t ret = 0;
+    do
+    {
+        ret = p-ptr;
+        if (ret == len)
+        {
+            break;
+        }
+    } while(*p++ == c);
+    return ret;
+}
+
 TEST_P(TestP,Foo)
 {
     Params p = GetParam();
-    const size_t count = buflen/p.len;
+    const size_t count = buflen/p.len/p.nchans;
     BufferMgr bm(buf,buflen,p.len,p.nchans);
  
     if (bm.num_units() > IoVec::maxiov)
@@ -43,11 +58,10 @@ TEST_P(TestP,Foo)
         return;
     }
 
+    char *ptr =bm.base();
     IoVec vec(bm,p.chan);
 
     EXPECT_EQ(vec.size(),count);
-    EXPECT_LE(vec.span(),buflen);
-    EXPECT_EQ(vec.span(),vec.size()*p.len);
     ASSERT_EQ(vec.base(),buf);
     ASSERT_LE(vec.base(count-1)-vec.base(),buflen);
     ASSERT_LE(vec.nbytes(),buflen);
@@ -58,6 +72,7 @@ TEST_P(TestP,Foo)
 
     ASSERT_NE(n,-1) << "size " << p.len << " errno " << errno;
     EXPECT_EQ(n,p.len*count);
+    ASSERT_EQ(n, runlen(bm.base(p.chan),0,buflen));
 };
 
 // TODO: use netcat or similar
@@ -75,7 +90,6 @@ TEST(BufferTest,1)
     ASSERT_EQ(buf.size(),bufflen);
     ASSERT_EQ(buf.m_stride,nchans*iov_len);
     ASSERT_EQ(buf.m_num_units,nunits);
-    ASSERT_EQ(buf.span(),nunits*iov_len*nchans);
     ASSERT_EQ(buf.base(0),base);
     ASSERT_EQ(buf.base(0,2),base+buf.m_stride*2);
     ASSERT_EQ(buf.base(1),base+iov_len);
@@ -83,7 +97,7 @@ TEST(BufferTest,1)
 }
 
 
-#if 0
+#if 1
 INSTANTIATE_TEST_SUITE_P(sizes,TestP,
     testing::Values(
            Params(0x10000),
