@@ -11,11 +11,11 @@ public:
     char* const m_base;
     const size_t m_size;
     const size_t m_iov_len;
-    const size_t m_nchans;
+    const size_t m_num_chans;
     mutable size_t m_num_units;
     mutable size_t m_stride;
 
-    BufferMgr(char* base, size_t size, size_t iov_len, size_t nchans=1);
+    BufferMgr(char* base, size_t size, size_t iov_len, size_t num_chans=1);
     size_t size() const { return m_size; };
     size_t iov_len() const { return m_iov_len; };
     char* base(size_t channel=0, size_t unit=0) const;

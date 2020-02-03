@@ -28,22 +28,29 @@ IoVec::IoVec(const BufferMgr &buf, size_t chan)
     }
 }
 
-BufferMgr::BufferMgr(char* base, size_t size, size_t iov_len, size_t nchans)
+BufferMgr::BufferMgr(char* base, size_t size, size_t iov_len, size_t num_chans)
 : m_base(base),
   m_size(size),
   m_iov_len(iov_len),
-  m_nchans(nchans)
+  m_num_chans(num_chans)
 {
     assert(iov_len);
-    m_stride = m_nchans*m_iov_len;
+    m_stride = m_num_chans*m_iov_len;
     m_num_units = m_size/m_stride;
     assert(m_num_units);
+    assert(m_num_chans);
 }
 
 char* BufferMgr::base(size_t channel, size_t unit) const
 {
-    assert(channel < m_nchans);
-    assert(unit < m_num_units);
+    if (not (channel < m_num_chans))
+    {
+        throw std::runtime_error("invalid channel");
+    }
+    if (not (unit < m_num_units))
+    {
+        throw std::runtime_error("invalid unit");
+    }
     char *ret = m_base + unit*m_stride + channel*m_iov_len;
     return ret;
 }
